@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini PC Bundle Calculator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3352;
+    --accent: #4f7dff;
+    --accent-dim: rgba(79,125,255,0.12);
+    --accent-glow: rgba(79,125,255,0.25);
+    --green: #22d3a0;
+    --green-dim: rgba(34,211,160,0.1);
+    --orange: #ff9f43;
+    --orange-dim: rgba(255,159,67,0.1);
+    --text: #e8eaf6;
+    --text-muted: #7b82a8;
+    --text-dim: #4a5080;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+
+  .header { text-align: center; margin-bottom: 28px; }
+  .header-label { font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+  .header h1 { font-size: clamp(22px, 4vw, 30px); font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+  .header p { color: var(--text-muted); font-size: 13px; margin-top: 6px; }
+
+  /* TABS */
+  .tabs {
+    display: flex; gap: 4px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 4px;
+    max-width: 600px; margin: 0 auto 28px;
+  }
+  .tab-btn {
+    flex: 1; padding: 9px 0; font-size: 12px; font-weight: 600;
+    background: transparent; border: none; border-radius: var(--radius-sm);
+    color: var(--text-muted); cursor: pointer; transition: all 0.2s;
+  }
+  .tab-btn.active { background: var(--accent); color: #fff; }
+  .tab-btn:not(.active):hover { background: var(--surface2); color: var(--text); }
+
+  .panel { display: none; max-width: 860px; margin: 0 auto; }
+  .panel.active { display: block; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-muted); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .card-title span.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; }
+
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label { display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; }
+  .field input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text);
+    font-family: 'JetBrains Mono', monospace; font-size: 14px;
+    padding: 10px 12px; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+  .field input::placeholder { color: var(--text-dim); }
+
+  .setting-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 480px) { .setting-grid { grid-template-columns: 1fr; } }
+
+  .setting-item {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .setting-item label { font-size: 12px; color: var(--text-muted); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .setting-item input {
+    width: 110px; background: transparent; border: 1px solid var(--border);
+    border-radius: 4px; color: var(--text); font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; padding: 5px 8px; text-align: right; outline: none;
+    transition: border-color 0.2s; flex-shrink: 0;
+  }
+  .setting-item input:focus { border-color: var(--accent); }
+
+  .save-btn { width: 100%; padding: 12px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; margin-top: 4px; }
+  .save-btn:hover { opacity: 0.88; }
+  .save-note { text-align: center; font-size: 11px; color: var(--text-dim); margin-top: 8px; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--green); color: #0a1a14; font-size: 12px; font-weight: 600; padding: 10px 16px; border-radius: var(--radius-sm); opacity: 0; transform: translateY(10px); transition: all 0.25s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* INPUT ROW */
+  .modal-input-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 4px; }
+  .modal-input-row .field { flex: 1; min-width: 180px; margin-bottom: 0; }
+
+  /* RESULT HEADER */
+  .result-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+  .result-header-left { font-size: 12px; color: var(--text-muted); }
+  .result-header-left strong { color: var(--text); font-size: 14px; }
+  .result-header-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  .copy-all-btn { padding: 6px 14px; background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .copy-all-btn:hover { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+  .copy-all-btn.toped { }
+  .copy-all-btn.toped:hover { background: var(--orange-dim); color: var(--orange); border-color: var(--orange); }
+
+  /* BUNDLE TABLE */
+  .bundle-section { margin-bottom: 16px; }
+  .bundle-section-title { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; padding: 0 4px; }
+
+  /* COL HEADERS */
+  .bundle-col-header {
+    display: flex; align-items: center; padding: 0 14px 6px;
+    gap: 8px;
+  }
+  .bundle-col-header .col-name { flex: 1; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); }
+  .bundle-col-header .col-price { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--green); width: 120px; text-align: right; }
+  .bundle-col-header .col-toped { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--orange); width: 120px; text-align: right; }
+
+  .bundle-row {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 14px;
+    margin-bottom: 6px; display: flex; align-items: center;
+    gap: 8px; transition: border-color 0.15s;
+  }
+  .bundle-row:last-child { margin-bottom: 0; }
+  .bundle-name { font-size: 13px; color: var(--text); flex: 1; }
+
+  .price-cell {
+    width: 120px; flex-shrink: 0; text-align: right;
+    display: flex; align-items: center; justify-content: flex-end; gap: 6px;
+  }
+  .price-val {
+    font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600;
+    cursor: pointer; border-radius: 4px; padding: 3px 6px; transition: all 0.15s;
+  }
+  .price-val.green { color: var(--green); }
+  .price-val.green:hover { background: var(--green-dim); }
+  .price-val.orange { color: var(--orange); }
+  .price-val.orange:hover { background: var(--orange-dim); }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text-dim); font-size: 13px; }
+  .empty-state .emoji { font-size: 28px; margin-bottom: 10px; }
+
+  /* FILTER CHIPS */
+  .filter-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .chip { padding: 5px 12px; border: 1px solid var(--border); border-radius: 20px; font-size: 11px; font-weight: 600; color: var(--text-muted); cursor: pointer; background: transparent; transition: all 0.15s; }
+  .chip.active, .chip:hover { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+  /* XBP TOGGLE */
+  .xbp-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px; background: var(--bg);
+    border: 1px solid var(--border); border-radius: var(--radius-sm);
+    margin-bottom: 16px;
+  }
+  .xbp-label { font-size: 13px; color: var(--text); flex: 1; }
+  .xbp-label span { font-size: 11px; color: var(--text-muted); display: block; margin-top: 2px; }
+  .toggle-wrap { display: flex; align-items: center; gap: 8px; }
+  .toggle-wrap .off-label, .toggle-wrap .on-label { font-size: 11px; font-weight: 600; }
+  .toggle-wrap .off-label { color: var(--text-dim); }
+  .toggle-wrap .on-label { color: var(--orange); }
+  .toggle {
+    position: relative; width: 40px; height: 22px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 11px; cursor: pointer; transition: all 0.2s; flex-shrink: 0;
+  }
+  .toggle.on { background: var(--orange); border-color: var(--orange); }
+  .toggle::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 16px; height: 16px; background: #fff;
+    border-radius: 50%; transition: left 0.2s;
+  }
+  .toggle.on::after { left: 20px; }
+
+  /* TOPED SETTINGS */
+  .toped-rate-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .rate-item {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .rate-item label { font-size: 12px; color: var(--text-muted); flex: 1; }
+  .rate-item input {
+    width: 80px; background: transparent; border: 1px solid var(--border);
+    border-radius: 4px; color: var(--text); font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; padding: 5px 8px; text-align: right; outline: none; transition: border-color 0.2s;
+  }
+  .rate-item input:focus { border-color: var(--orange); }
+  .rate-unit { font-size: 11px; color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-label">Pricing Tool</div>
+  <h1>Mini PC Bundle Calculator</h1>
+  <p>Hitung harga jual bundling RAM + SSD otomatis dari harga modal</p>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('calc', this)">🖩 Kalkulator</button>
+  <button class="tab-btn" onclick="switchTab('settings', this)">⚙️ Harga Part</button>
+  <button class="tab-btn" onclick="switchTab('toped', this)">🛍️ Tokopedia</button>
+</div>
+
+<!-- ===================== TAB KALKULATOR ===================== -->
+<div class="panel active" id="panel-calc">
+
+  <div class="card">
+    <div class="card-title"><span class="dot"></span> Input Harga Modal</div>
+    <div class="modal-input-row">
+      <div class="field">
+        <label>Harga Mini PC (Rp)</label>
+        <input type="number" id="modal-pc" placeholder="Contoh: 1500000" oninput="calcAll()" />
+      </div>
+    </div>
+  </div>
+
+  <!-- XBP TOGGLE -->
+  <div class="xbp-row">
+    <div class="xbp-label">
+      Growth Xtra Program (XBP)
+      <span>Cashback 2.5% × HJ aktif jika ON</span>
+    </div>
+    <div class="toggle-wrap">
+      <span class="off-label">OFF</span>
+      <div class="toggle" id="xbp-toggle" onclick="toggleXBP()"></div>
+      <span class="on-label">ON</span>
+    </div>
+  </div>
+
+  <!-- FILTER -->
+  <div class="filter-row">
+    <button class="chip active" data-filter="all" onclick="setFilter('all', this)">Semua</button>
+    <button class="chip" data-filter="ddr4" onclick="setFilter('ddr4', this)">DDR4</button>
+    <button class="chip" data-filter="ddr5" onclick="setFilter('ddr5', this)">DDR5</button>
+    <button class="chip" data-filter="128" onclick="setFilter('128', this)">SSD 128GB</button>
+    <button class="chip" data-filter="256" onclick="setFilter('256', this)">SSD 256GB</button>
+    <button class="chip" data-filter="512" onclick="setFilter('512', this)">SSD 512GB</button>
+    <button class="chip" data-filter="1tb" onclick="setFilter('1tb', this)">SSD 1TB</button>
+    <button class="chip" data-filter="2tb" onclick="setFilter('2tb', this)">SSD 2TB</button>
+  </div>
+
+  <div id="result-area">
+    <div class="empty-state">
+      <div class="emoji">💡</div>
+      <div>Masukkan harga Mini PC untuk melihat harga bundling</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===================== TAB SETTINGS ===================== -->
+<div class="panel" id="panel-settings">
+
+  <div class="card">
+    <div class="card-title"><span class="dot"></span> Harga Modal Komponen</div>
+    <div class="setting-grid">
+      <div class="setting-item"><label>Windows 11</label><input type="number" id="s-win" placeholder="0" /></div>
+      <div class="setting-item"><label>RAM 8GB DDR4</label><input type="number" id="s-r8d4" placeholder="0" /></div>
+      <div class="setting-item"><label>RAM 16GB DDR4</label><input type="number" id="s-r16d4" placeholder="0" /></div>
+      <div class="setting-item"><label>RAM 32GB DDR4</label><input type="number" id="s-r32d4" placeholder="0" /></div>
+      <div class="setting-item"><label>RAM 64GB DDR4</label><input type="number" id="s-r64d4" placeholder="0" /></div>
+      <div class="setting-item"><label>RAM 8GB DDR5</label><input type="number" id="s-r8d5" placeholder="0" /></div>
+      <div class="setting-item"><label>RAM 16GB DDR5</label><input type="number" id="s-r16d5" placeholder="0" /></div>
+      <div class="setting-item"><label>RAM 32GB DDR5</label><input type="number" id="s-r32d5" placeholder="0" /></div>
+      <div class="setting-item"><label>RAM 64GB DDR5</label><input type="number" id="s-r64d5" placeholder="0" /></div>
+      <div class="setting-item"><label>SSD 128GB</label><input type="number" id="s-ssd128" placeholder="0" /></div>
+      <div class="setting-item"><label>SSD 256GB</label><input type="number" id="s-ssd256" placeholder="0" /></div>
+      <div class="setting-item"><label>SSD 512GB</label><input type="number" id="s-ssd512" placeholder="0" /></div>
+      <div class="setting-item"><label>SSD 1TB</label><input type="number" id="s-ssd1tb" placeholder="0" /></div>
+      <div class="setting-item"><label>SSD 2TB</label><input type="number" id="s-ssd2tb" placeholder="0" /></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot"></span> Biaya Tambahan (Opsional)</div>
+    <div class="setting-grid">
+      <div class="setting-item"><label>Ongkos Pasang</label><input type="number" id="s-ongkos" placeholder="0" /></div>
+      <div class="setting-item"><label>Biaya Lain-lain</label><input type="number" id="s-misc" placeholder="0" /></div>
+    </div>
+  </div>
+
+  <button class="save-btn" onclick="saveSettings()">💾 Simpan Pengaturan</button>
+  <p class="save-note">Data tersimpan di browser (localStorage)</p>
+
+</div>
+
+<!-- ===================== TAB TOKOPEDIA ===================== -->
+<div class="panel" id="panel-toped">
+
+  <div class="card">
+    <div class="card-title"><span class="dot"></span> Struktur Biaya Tokopedia / TikTok Shop</div>
+    <div class="toped-rate-grid">
+      <div class="rate-item">
+        <label>Komisi Platform</label>
+        <input type="number" step="0.1" id="t-komisi" value="3" />
+        <span class="rate-unit">%</span>
+      </div>
+      <div class="rate-item">
+        <label>Biaya Layanan Mall</label>
+        <input type="number" id="t-mall" value="50000" />
+        <span class="rate-unit">Rp flat</span>
+      </div>
+      <div class="rate-item">
+        <label>Komisi Dinamis (max)</label>
+        <input type="number" id="t-dinamis-cap" value="650000" />
+        <span class="rate-unit">Rp cap</span>
+      </div>
+      <div class="rate-item">
+        <label>Komisi Dinamis</label>
+        <input type="number" step="0.1" id="t-dinamis-pct" value="4" />
+        <span class="rate-unit">%</span>
+      </div>
+      <div class="rate-item">
+        <label>Cashback XBP (jika ON)</label>
+        <input type="number" step="0.1" id="t-xbp" value="2.5" />
+        <span class="rate-unit">%</span>
+      </div>
+      <div class="rate-item">
+        <label>Biaya Proses</label>
+        <input type="number" id="t-proses" value="1250" />
+        <span class="rate-unit">Rp flat</span>
+      </div>
+    </div>
+    <p style="font-size:11px;color:var(--text-dim);margin-top:14px;">
+      Formula: <code style="color:var(--orange);font-size:11px;">CEIL((Modal + flat) / (1 - rate%))</code> &nbsp;—&nbsp; Komisi Dinamis = MIN(4% × HJ, Rp650.000)
+    </p>
+  </div>
+
+  <button class="save-btn" onclick="saveTokedSettings()" style="background: var(--orange);">💾 Simpan Pengaturan Tokopedia</button>
+  <p class="save-note">Data tersimpan di browser (localStorage)</p>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────
+const ITEMS = {
+  ram: [
+    { id: 'r8d4',  label: 'RAM 8GB DDR4',  key: 's-r8d4',  tag: 'ddr4' },
+    { id: 'r16d4', label: 'RAM 16GB DDR4', key: 's-r16d4', tag: 'ddr4' },
+    { id: 'r32d4', label: 'RAM 32GB DDR4', key: 's-r32d4', tag: 'ddr4' },
+    { id: 'r64d4', label: 'RAM 64GB DDR4', key: 's-r64d4', tag: 'ddr4' },
+    { id: 'r8d5',  label: 'RAM 8GB DDR5',  key: 's-r8d5',  tag: 'ddr5' },
+    { id: 'r16d5', label: 'RAM 16GB DDR5', key: 's-r16d5', tag: 'ddr5' },
+    { id: 'r32d5', label: 'RAM 32GB DDR5', key: 's-r32d5', tag: 'ddr5' },
+    { id: 'r64d5', label: 'RAM 64GB DDR5', key: 's-r64d5', tag: 'ddr5' },
+  ],
+  ssd: [
+    { id: 'ssd128', label: 'SSD 128GB', key: 's-ssd128', tag: '128' },
+    { id: 'ssd256', label: 'SSD 256GB', key: 's-ssd256', tag: '256' },
+    { id: 'ssd512', label: 'SSD 512GB', key: 's-ssd512', tag: '512' },
+    { id: 'ssd1tb', label: 'SSD 1TB',   key: 's-ssd1tb', tag: '1tb' },
+    { id: 'ssd2tb', label: 'SSD 2TB',   key: 's-ssd2tb', tag: '2tb' },
+  ]
+};
+
+let activeFilter = 'all';
+let xbpOn = false;
+
+// ─── TABS ────────────────────────────────────────────────────────
+function switchTab(tab, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ─── XBP TOGGLE ──────────────────────────────────────────────────
+function toggleXBP() {
+  xbpOn = !xbpOn;
+  const el = document.getElementById('xbp-toggle');
+  el.classList.toggle('on', xbpOn);
+  calcAll();
+}
+
+// ─── FILTER ──────────────────────────────────────────────────────
+function setFilter(f, el) {
+  activeFilter = f;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  calcAll();
+}
+
+// ─── FORMAT ──────────────────────────────────────────────────────
+function fmt(n) {
+  if (!n) return 'Rp 0';
+  return 'Rp ' + Math.round(n).toLocaleString('id-ID');
+}
+function getVal(id) {
+  const el = document.getElementById(id);
+  return el ? (parseFloat(el.value) || 0) : 0;
+}
+
+
+
+
+
+// ─── END IN 9000 ─────────────────────────────────────────────────
+// Misal: 7420699 → 7429000 | 8334678 → 8339000
+function endIn9000(n) {
+  const base = Math.floor(n / 10000) * 10000; // bulatkan ke bawah per 10rb
+  const candidate = base + 9000;
+  return candidate >= n ? candidate : candidate + 10000;
+}
+
+// HJ = CEIL((Modal + flat) / (1 - rate))
+// Komisi Dinamis = MIN(dinamis_pct% x HJ, cap)
+// Total rate = komisi% + MIN(dinamis_pct%, cap/HJ) + (xbp ? xbp% : 0)
+// Iterative solve since Komisi Dinamis depends on HJ
+function tokedPrice(modal) {
+  const komisiPct = getVal('t-komisi') / 100;
+  const mallFlat  = getVal('t-mall');
+  const dinamisPct = getVal('t-dinamis-pct') / 100;
+  const dinamisCap = getVal('t-dinamis-cap');
+  const xbpPct    = xbpOn ? getVal('t-xbp') / 100 : 0;
+  const prosesFlat = getVal('t-proses');
+
+  const flatTotal = mallFlat + prosesFlat;
+
+  // Iterative: start with estimate, refine
+  let hj = Math.ceil((modal + flatTotal) / (1 - komisiPct - dinamisPct - xbpPct));
+  for (let i = 0; i < 10; i++) {
+    const dinamis = Math.min(dinamisPct * hj, dinamisCap);
+    const dinamisRate = dinamis / hj;
+    const totalRate = komisiPct + dinamisRate + xbpPct;
+    const newHj = Math.ceil((modal + flatTotal) / (1 - totalRate));
+    if (newHj === hj) break;
+    hj = newHj;
+  }
+  return endIn9000(hj);
+}
+
+// ─── SETTINGS ────────────────────────────────────────────────────
+const PART_IDS = [
+  's-win','s-r8d4','s-r16d4','s-r32d4','s-r64d4',
+  's-r8d5','s-r16d5','s-r32d5','s-r64d5',
+  's-ssd128','s-ssd256','s-ssd512','s-ssd1tb','s-ssd2tb',
+  's-ongkos','s-misc'
+];
+const TOPED_IDS = ['t-komisi','t-mall','t-dinamis-cap','t-dinamis-pct','t-xbp','t-proses'];
+
+function saveSettings() {
+  const data = {};
+  PART_IDS.forEach(id => { data[id] = getVal(id); });
+  localStorage.setItem('minipc_settings', JSON.stringify(data));
+  showToast('✅ Pengaturan harga part tersimpan!');
+  calcAll();
+}
+
+function saveTokedSettings() {
+  const data = {};
+  TOPED_IDS.forEach(id => { data[id] = getVal(id); });
+  localStorage.setItem('minipc_toped', JSON.stringify(data));
+  showToast('✅ Pengaturan Tokopedia tersimpan!');
+  calcAll();
+}
+
+function loadSettings() {
+  const raw = localStorage.getItem('minipc_settings');
+  if (raw) {
+    const data = JSON.parse(raw);
+    PART_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && data[id] !== undefined) el.value = data[id] || '';
+    });
+  }
+  const rawT = localStorage.getItem('minipc_toped');
+  if (rawT) {
+    const data = JSON.parse(rawT);
+    TOPED_IDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && data[id] !== undefined) el.value = data[id];
+    });
+  }
+}
+
+// ─── CALCULATE ───────────────────────────────────────────────────
+function calcAll() {
+  const modalPC = getVal('modal-pc');
+  const winCost = getVal('s-win');
+  const ongkos  = getVal('s-ongkos');
+  const misc    = getVal('s-misc');
+
+  if (!modalPC) {
+    document.getElementById('result-area').innerHTML = `
+      <div class="empty-state">
+        <div class="emoji">💡</div>
+        <div>Masukkan harga Mini PC untuk melihat harga bundling</div>
+      </div>`;
+    return;
+  }
+
+  function bundleModal(ramCost, ssdCost) {
+    return modalPC + winCost + ramCost + ssdCost + ongkos + misc;
+  }
+
+  function shouldShow(ramTag, ssdTag) {
+    if (activeFilter === 'all') return true;
+    if (['ddr4','ddr5'].includes(activeFilter)) return ramTag === activeFilter;
+    return ssdTag === activeFilter;
+  }
+
+  let sections = [];
+  if (['ddr4','ddr5','all'].includes(activeFilter)) {
+    ITEMS.ssd.forEach(ssd => {
+      const ssdCost = getVal(ssd.key);
+      const rows = ITEMS.ram
+        .filter(ram => shouldShow(ram.tag, ssd.tag))
+        .map(ram => {
+          const modal = bundleModal(getVal(ram.key), ssdCost);
+          return {
+            label: `Mini PC + Win11 + ${ram.label} + ${ssd.label}`,
+            price: modal,
+            toped: tokedPrice(modal)
+          };
+        });
+      if (rows.length) sections.push({ title: ssd.label, rows });
+    });
+  } else {
+    const targetSsd = ITEMS.ssd.find(s => s.tag === activeFilter);
+    if (targetSsd) {
+      const ssdCost = getVal(targetSsd.key);
+      const rows = ITEMS.ram.map(ram => {
+        const modal = bundleModal(getVal(ram.key), ssdCost);
+        return {
+          label: `Mini PC + Win11 + ${ram.label} + ${targetSsd.label}`,
+          price: modal,
+          toped: tokedPrice(modal)
+        };
+      });
+      sections.push({ title: targetSsd.label, rows });
+    }
+  }
+
+  const totalRows = sections.reduce((s, sec) => s + sec.rows.length, 0);
+  const xbpBadge = xbpOn
+    ? `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--orange-dim);color:var(--orange);margin-left:8px;">XBP ON</span>`
+    : `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--surface2);color:var(--text-dim);margin-left:8px;">XBP OFF</span>`;
+
+  let html = `<div class="card">
+    <div class="result-header">
+      <div class="result-header-left">
+        Harga PC: <strong>${fmt(modalPC)}</strong> &nbsp;|&nbsp; Varian: <strong>${totalRows}</strong>${xbpBadge}
+      </div>
+      <div class="result-header-right">
+        <button class="copy-all-btn" onclick="copyAllPrice()">📋 Copy Harga</button>
+        <button class="copy-all-btn toped" onclick="copyAllToped()" style="color:var(--orange);border-color:var(--orange);">🛍️ Copy Tokped</button>
+      </div>
+    </div>`;
+
+  sections.forEach(sec => {
+    html += `<div class="bundle-section">
+      <div class="bundle-section-title">${sec.title}</div>
+      <div class="bundle-col-header">
+        <span class="col-name">Varian</span>
+        <span class="col-price">Harga Modal</span>
+        <span class="col-toped">Tokopedia</span>
+      </div>`;
+    sec.rows.forEach(row => {
+      html += `<div class="bundle-row" data-price="${Math.round(row.price)}" data-toped="${Math.round(row.toped)}">
+        <span class="bundle-name">${row.label}</span>
+        <div class="price-cell">
+          <span class="price-val green" title="Klik untuk copy" onclick="copyVal(${Math.round(row.price)}, this)">${fmt(row.price)}</span>
+        </div>
+        <div class="price-cell">
+          <span class="price-val orange" title="Klik untuk copy" onclick="copyVal(${Math.round(row.toped)}, this)">${fmt(row.toped)}</span>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+
+  html += `</div>`;
+  document.getElementById('result-area').innerHTML = html;
+}
+
+// ─── COPY ────────────────────────────────────────────────────────
+function copyVal(num, el) {
+  navigator.clipboard.writeText(String(num)).then(() => {
+    const orig = el.textContent;
+    el.textContent = '✓';
+    setTimeout(() => el.textContent = orig, 800);
+    showToast('✅ Disalin: ' + num);
+  });
+}
+
+function copyAllPrice() {
+  const rows = document.querySelectorAll('.bundle-row');
+  if (!rows.length) return;
+  const lines = Array.from(rows).map(r => r.dataset.price);
+  navigator.clipboard.writeText(lines.join('\n')).then(() => {
+    showToast(`✅ ${lines.length} harga modal disalin!`);
+  });
+}
+
+function copyAllToped() {
+  const rows = document.querySelectorAll('.bundle-row');
+  if (!rows.length) return;
+  const lines = Array.from(rows).map(r => r.dataset.toped);
+  navigator.clipboard.writeText(lines.join('\n')).then(() => {
+    showToast(`✅ ${lines.length} harga Tokopedia disalin!`);
+  });
+}
+
+// ─── TOAST ───────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────
+loadSettings();
+</script>
+</body>
+</html>
